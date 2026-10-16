@@ -89,7 +89,11 @@ class PCloud(private val host: String, private val auth: String) {
                 .add("getauth", "1")
                 .add("username", user)
                 .add("password", pass)
-            if (tfaCode.isNotBlank()) form.add("tfacode", tfaCode.trim())
+            if (tfaCode.isNotBlank()) {
+                // pCloud verlangt den Code im Parameter "code" (Fehler 1022: "Please provide 'code'").
+                form.add("code", tfaCode.trim())
+                form.add("tfacode", tfaCode.trim())
+            }
             val req = Request.Builder().url("https://$host/userinfo").post(form.build()).build()
             Shared.http.newCall(req).execute().use { r ->
                 val body = r.body?.string().orEmpty()
@@ -100,9 +104,20 @@ class PCloud(private val host: String, private val auth: String) {
                 }
                 val code = j.optInt("result", -1)
                 if (code != 0) {
+                    val api = j.optString("error", "Anmeldung fehlgeschlagen")
                     throw PCloudException(
-                        j.optString("error", "Anmeldung fehlgeschlagen") +
-                            " (Code $code) - Region (EU/US) pruefen"
+                        when {
+                            code == 1022 && tfaCode.isBlank() ->
+                                "pCloud verlangt einen 2FA-Code. Code eintragen und erneut auf Anmelden tippen."
+
+                            code == 1022 ->
+                                "2FA-Code abgelehnt oder abgelaufen. Neuen Code eintragen und erneut versuchen. ($api, Code $code)"
+
+                            code == 2000 ->
+                                "Anmeldung fehlgeschlagen: E-Mail, Passwort und Region (EU/US) pruefen. ($api, Code $code)"
+
+                            else -> "$api (Code $code)"
+                        }
                     )
                 }
                 val token = j.optString("auth", "")
