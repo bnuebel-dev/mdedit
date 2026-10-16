@@ -61,6 +61,14 @@ class AppVm(app: Application) : AndroidViewModel(app) {
     var showNew by mutableStateOf(false)
     var confirmDiscard by mutableStateOf(false)
 
+    // Anmeldedaten im ViewModel: bleiben beim Wechsel in die Mail-App (2FA-Code) und bei Drehung erhalten.
+    // Nur im Arbeitsspeicher, nie auf dem Datentraeger. Passwort und Code werden nach Erfolg geleert.
+    var loginUser by mutableStateOf("")
+    var loginPass by mutableStateOf("")
+    var loginTfa by mutableStateOf("")
+    var loginHost by mutableStateOf(prefs.pcloudHost)
+    var loginNeedsCode by mutableStateOf(false)
+
     val dirty: Boolean get() = doc != null && text != savedText
 
     private var inflight = 0
@@ -292,15 +300,29 @@ class AppVm(app: Application) : AndroidViewModel(app) {
         openRoot(Loc.CloudDir(0L, "pCloud"))
     }
 
-    fun login(user: String, pass: String, tfa: String, host: String) {
+    fun login() {
         if (!prefs.secureAvailable) {
             message = "Sicherer Speicher (Android Keystore) nicht verfuegbar - Anmeldung nicht moeglich"
             return
         }
-        launchIO({ PCloud.login(host, user, pass, tfa) }) { token ->
+        val user = loginUser.trim()
+        val pass = loginPass
+        val tfa = loginTfa
+        val host = loginHost
+        launchIO({
+            try {
+                PCloud.login(host, user, pass, tfa)
+            } catch (e: PCloudException) {
+                if (e.code == 1022) loginNeedsCode = true
+                throw e
+            }
+        }) { token ->
             prefs.pcloudHost = host
             prefs.pcloudToken = token
             loggedIn = true
+            loginPass = ""
+            loginTfa = ""
+            loginNeedsCode = false
             screen = Screen.HOME
             message = "Bei pCloud angemeldet"
         }

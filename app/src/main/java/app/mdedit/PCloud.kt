@@ -8,7 +8,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
-class PCloudException(msg: String) : Exception(msg)
+class PCloudException(msg: String, val code: Int = 0) : Exception(msg)
 
 data class CloudItem(val name: String, val isDir: Boolean, val id: Long)
 
@@ -117,7 +117,8 @@ class PCloud(private val host: String, private val auth: String) {
                                 "Anmeldung fehlgeschlagen: E-Mail, Passwort und Region (EU/US) pruefen. ($api, Code $code)"
 
                             else -> "$api (Code $code)"
-                        }
+                        },
+                        code
                     )
                 }
                 val token = j.optString("auth", "")

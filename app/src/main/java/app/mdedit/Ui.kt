@@ -309,11 +309,6 @@ private fun MarkdownView(text: String) {
 
 @Composable
 private fun Login(vm: AppVm, modifier: Modifier) {
-    var user by remember { mutableStateOf("") }
-    var pass by remember { mutableStateOf("") }
-    var tfa by remember { mutableStateOf("") }
-    var host by remember { mutableStateOf(vm.prefs.pcloudHost) }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -326,35 +321,45 @@ private fun Login(vm: AppVm, modifier: Modifier) {
             style = MaterialTheme.typography.bodyMedium
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = host == Prefs.HOST_EU, onClick = { host = Prefs.HOST_EU }, label = { Text("EU-Region") })
-            FilterChip(selected = host == Prefs.HOST_US, onClick = { host = Prefs.HOST_US }, label = { Text("US-Region") })
+            FilterChip(selected = vm.loginHost == Prefs.HOST_EU, onClick = { vm.loginHost = Prefs.HOST_EU }, label = { Text("EU-Region") })
+            FilterChip(selected = vm.loginHost == Prefs.HOST_US, onClick = { vm.loginHost = Prefs.HOST_US }, label = { Text("US-Region") })
         }
         OutlinedTextField(
-            value = user,
-            onValueChange = { user = it },
+            value = vm.loginUser,
+            onValueChange = { vm.loginUser = it },
             label = { Text("E-Mail") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
-            value = pass,
-            onValueChange = { pass = it },
+            value = vm.loginPass,
+            onValueChange = { vm.loginPass = it },
             label = { Text("Passwort") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth()
         )
+        if (vm.loginNeedsCode) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "pCloud verlangt einen 2FA-Code. Kommt er per E-Mail: Mail-App öffnen, Code kopieren, zurück zu MdEdit, " +
+                        "hier eintragen und erneut auf Anmelden tippen. E-Mail und Passwort bleiben erhalten.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(12.dp)
+                )
+            }
+        }
         OutlinedTextField(
-            value = tfa,
-            onValueChange = { tfa = it },
-            label = { Text("2FA-Code (falls aktiv)") },
+            value = vm.loginTfa,
+            onValueChange = { vm.loginTfa = it },
+            label = { Text(if (vm.loginNeedsCode) "2FA-Code" else "2FA-Code (falls aktiv)") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
         if (vm.busy) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         Button(
-            onClick = { vm.login(user.trim(), pass, tfa, host) },
-            enabled = user.isNotBlank() && pass.isNotEmpty() && !vm.busy,
+            onClick = { vm.login() },
+            enabled = vm.loginUser.isNotBlank() && vm.loginPass.isNotEmpty() && !vm.busy,
             modifier = Modifier.fillMaxWidth()
         ) { Text("Anmelden") }
     }
